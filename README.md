@@ -17,6 +17,16 @@ Publish AWS SES events to AWS DynamoDB table so you can see the delivery details
 # install aws cdk
 npm install -g aws-cdk
 
+# download source code
+git clone https://github.com/DiscreteTom/ses-event-recorder.git
+cd ses-event-recorder
+
+# install dependencies
+npm install
+
+# prepare cdk environment
+cdk bootstrap
+
 # deploy this project
 cdk deploy
 ```
