@@ -141,5 +141,9 @@ export class SesEventRecorderStack extends Stack {
       description:
         "Set this configuration set as the default configuration set for your identity.",
     });
+    new CfnOutput(this, "DynamoDBTableName", {
+      value: eventTable.tableName,
+      description: "DynamoDB table where the events are stored.",
+    });
   }
 }
