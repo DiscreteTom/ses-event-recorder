@@ -1,14 +1,28 @@
-# Welcome to your CDK TypeScript project
+# SES Event Recorder
 
-This is a blank project for TypeScript development with CDK.
+Publish AWS SES events to AWS DynamoDB table so you can see the delivery details of you email.
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
+## Architecture
 
-## Useful commands
+![arch](./img/arch.png)
 
-* `npm run build`   compile typescript to js
-* `npm run watch`   watch for changes and compile
-* `npm run test`    perform the jest unit tests
-* `cdk deploy`      deploy this stack to your default AWS account/region
-* `cdk diff`        compare deployed stack with current state
-* `cdk synth`       emits the synthesized CloudFormation template
+## Prerequisites
+
+- [npm](https://www.npmjs.com/) is installed.
+- AWS credentials are configured.
+
+## Deploy
+
+```bash
+# install aws cdk
+npm install -g aws-cdk
+
+# deploy this project
+cdk deploy
+```
+
+## Clean Up
+
+```bash
+cdk destroy
+```
