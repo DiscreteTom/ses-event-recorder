@@ -20,43 +20,95 @@ export class SesEventRecorderStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    const eventTTL = new CfnParameter(this, "EventTTL", {
-      type: "Number",
-      description: "How many seconds to keep those event log in DynamoDB.",
-      default: 60 * 60 * 24 * 7, // 7 days
-    }).valueAsString;
+    let retentionMap = new Map<string, RetentionDays>();
+    retentionMap.set("THREE_DAYS", RetentionDays.THREE_DAYS);
+    retentionMap.set("FIVE_DAYS", RetentionDays.FIVE_DAYS);
+    retentionMap.set("ONE_WEEK", RetentionDays.ONE_WEEK);
+    retentionMap.set("TWO_WEEKS", RetentionDays.TWO_WEEKS);
+    retentionMap.set("ONE_MONTH", RetentionDays.ONE_MONTH);
+    retentionMap.set("TWO_MONTHS", RetentionDays.TWO_MONTHS);
+    retentionMap.set("THREE_MONTHS", RetentionDays.THREE_MONTHS);
+    retentionMap.set("FOUR_MONTHS", RetentionDays.FOUR_MONTHS);
+    retentionMap.set("FIVE_MONTHS", RetentionDays.FIVE_MONTHS);
+    retentionMap.set("SIX_MONTHS", RetentionDays.SIX_MONTHS);
+    retentionMap.set("ONE_YEAR", RetentionDays.ONE_YEAR);
+    retentionMap.set("THIRTEEN_MONTHS", RetentionDays.THIRTEEN_MONTHS);
+    retentionMap.set("EIGHTEEN_MONTHS", RetentionDays.EIGHTEEN_MONTHS);
+    retentionMap.set("TWO_YEARS", RetentionDays.TWO_YEARS);
+    retentionMap.set("FIVE_YEARS", RetentionDays.FIVE_YEARS);
+    retentionMap.set("TEN_YEARS", RetentionDays.TEN_YEARS);
+    retentionMap.set("INFINITE", RetentionDays.INFINITE);
+
+    // parameters
     const eventTypes = new CfnParameter(this, "EventTypes", {
       type: "CommaDelimitedList",
       description:
-        "Event types, separated by a comma. See https://docs.aws.amazon.com/ses/latest/APIReference-V2/API_EventDestinationDefinition.html#SES-Type-EventDestinationDefinition-MatchingEventTypes",
+        "Event types. See https://docs.aws.amazon.com/ses/latest/APIReference-V2/API_EventDestinationDefinition.html#SES-Type-EventDestinationDefinition-MatchingEventTypes",
       default: "REJECT,BOUNCE,COMPLAINT",
     }).valueAsList;
+    const storageType = new CfnParameter(this, "StorageType", {
+      type: "String",
+      allowedValues: ["DynamoDB", "CloudWatch Logs"],
+      description: "Where to store your events?",
+      default: "CloudWatch Logs",
+    }).valueAsString;
+    const logTTL = new CfnParameter(this, "CloudWatchLogRetention", {
+      type: "String",
+      description: "How long to keep your logs in CloudWatch Logs?",
+      allowedValues: Array.from(retentionMap.keys()),
+      default: "ONE_WEEK",
+    }).valueAsString;
+    const ddbTTL = new CfnParameter(this, "DynamoDBTTL", {
+      type: "Number",
+      description:
+        "How many seconds to keep those event logs in DynamoDB? Ignore this if you choose CloudWatch Logs as the storage.",
+      default: 60 * 60 * 24 * 7, // 7 days
+    }).valueAsString;
 
-    const eventTable = new ddb.Table(this, "EventTable", {
-      partitionKey: { name: "destination", type: ddb.AttributeType.STRING },
-      sortKey: { name: "timestamp", type: ddb.AttributeType.STRING },
-      timeToLiveAttribute: "ttl",
-      removalPolicy: RemovalPolicy.DESTROY,
-    });
+    let lambdaFunction: lambda.Function;
+    if (storageType == "DynamoDB") {
+      const eventTable = new ddb.Table(this, "EventTable", {
+        partitionKey: { name: "destination", type: ddb.AttributeType.STRING },
+        sortKey: { name: "timestamp", type: ddb.AttributeType.STRING },
+        timeToLiveAttribute: "ttl",
+        removalPolicy: RemovalPolicy.DESTROY,
+      });
 
-    const snsToDdbFunction = new lambda.Function(this, "SnsToDynamoDB", {
-      code: lambda.Code.fromInline(
-        fs.readFileSync("./assets/handler.js").toString()
-      ),
-      runtime: lambda.Runtime.NODEJS_12_X,
-      handler: "index.handler",
-      environment: {
-        TableName: eventTable.tableName,
-        TTL: eventTTL,
-      },
-      logRetention: RetentionDays.ONE_DAY,
-    });
-    eventTable.grantWriteData(snsToDdbFunction);
+      lambdaFunction = new lambda.Function(this, "SnsToDynamoDB", {
+        code: lambda.Code.fromInline(
+          fs.readFileSync("./assets/handler.js").toString()
+        ),
+        runtime: lambda.Runtime.NODEJS_12_X,
+        handler: "index.handler",
+        environment: {
+          TableName: eventTable.tableName,
+          TTL: ddbTTL,
+        },
+        logRetention: retentionMap.get(logTTL),
+      });
+      eventTable.grantWriteData(lambdaFunction);
+
+      new CfnOutput(this, "DynamoDBTableName", {
+        value: eventTable.tableName,
+        description: "DynamoDB table where the events are stored.",
+      });
+    } else {
+      lambdaFunction = new lambda.Function(this, "SnsToCloudWatchLogs", {
+        code: lambda.Code.fromInline(
+          fs.readFileSync("./assets/handler.js").toString()
+        ),
+        runtime: lambda.Runtime.NODEJS_12_X,
+        handler: "index.handler",
+        logRetention: retentionMap.get(logTTL),
+      });
+      new CfnOutput(this, "CloudWatchLogGroupName", {
+        value: lambdaFunction.logGroup.logGroupName,
+        description: "CloudWatch LogGroup where the events are stored.",
+      });
+    }
 
     const topic = new sns.Topic(this, "SesEventPublisherTopic", {});
-    topic.addSubscription(
-      new subscriptions.LambdaSubscription(snsToDdbFunction)
-    );
+    topic.addSubscription(new subscriptions.LambdaSubscription(lambdaFunction));
 
     const ConfigurationSetName = `${this.stackName}-SnsEventPublishingConfigurationSet`;
     const EventDestinationName = `${this.stackName}-SnsEventPublishingDestination`;
@@ -140,10 +192,6 @@ export class SesEventRecorderStack extends Stack {
       value: ConfigurationSetName,
       description:
         "Set this configuration set as the default configuration set for your identity.",
-    });
-    new CfnOutput(this, "DynamoDBTableName", {
-      value: eventTable.tableName,
-      description: "DynamoDB table where the events are stored.",
     });
   }
 }
