@@ -48,6 +48,8 @@ cdk bootstrap
 
 # deploy this project
 cdk deploy
+# equals to
+# cdk deploy --parameters EventTypes=REJECT,BOUNCE,COMPLAINT --parameters StorageType="CloudWatch Logs" --parameters CloudWatchLogRetention=ONE_WEEK
 ```
 
 After those above, you will see a new SES Configuration Set. Set that Configuration Set to the default Configuration Set of you Verified Identities.
