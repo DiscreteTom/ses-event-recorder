@@ -1,10 +1,14 @@
 # SES Event Recorder
 
-Publish AWS SES events to AWS DynamoDB table so you can see the delivery details of your email.
+Publish AWS SES events to AWS CloudWatch Logs or AWS DynamoDB table so you can see the delivery details of your email.
 
-You can query your email events by recipient email address and a time range.
+For CloudWatch Logs, you can search events by keywords:
 
-![query](img/query.png)
+![search](./img/search.png)
+
+For DynamoDB, you can query your email events by recipient email address and a time range:
+
+![query](./img/query.png)
 
 ## Architecture
 
@@ -54,7 +58,11 @@ Then, send a test email using `Bounce` type:
 
 ![send](img/send.png)
 
-Now you can find your bounce event details in DynamoDB:
+Now you can find your bounce event details in CloudWatch Logs:
+
+![logs](./img/logs.png)
+
+Or DynamoDB:
 
 ![ddb](img/ddb.png)
 
