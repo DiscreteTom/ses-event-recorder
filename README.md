@@ -7,7 +7,7 @@ Publish AWS SES events to AWS DynamoDB table so you can see the delivery details
 ![arch](./img/arch.png)
 
 - SES Event Publishing will be used to publish selected events to SNS.
-  - By default the selected event types are `REJECT,BOUNCE,COMPLAINT`, you can customize it using CDK/CloudFormation parameters.
+  - By default the selected event types are `REJECT,BOUNCE,COMPLAINT`, you can customize it by using CDK/CloudFormation parameters.
 - Lambda will save the full records to DynamoDB.
   - You can customize the lambda handler code to make those records smaller.
   - Raw event will be logged into CloudWatch Logs and be retained for 1 day.
@@ -15,7 +15,7 @@ Publish AWS SES events to AWS DynamoDB table so you can see the delivery details
   - The destinations/recipients of the email is the partition key of DynamoDB, and the timestamp of the email is the sort key.
     - If a email contains multiple destinations, multiple item will be created in DynamoDB.
     - By this design, you can query your email event by recipient email address and a time range.
-  - DynamoDB TTL attribute is set to control the size of the table. TTL is 7 days by default.
+  - DynamoDB TTL attribute is set to control the size of the table. TTL is 7 days by default, you can customize it by using CDK/CloudFormation parameters.
 
 ## Prerequisites
 
